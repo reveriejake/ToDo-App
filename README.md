@@ -2,6 +2,8 @@
 
 A simple, lightweight ToDo app that runs directly in the browser.
 
+![ToDo App](images/screenshot.png)
+
 ## Features
 
 * Create and manage todo items
