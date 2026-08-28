@@ -2,7 +2,7 @@
 
 A simple, lightweight ToDo app that runs directly in the browser.
 
-![ToDo App](images/screenshot.png)
+![ToDo App](images/Screenshot.png)
 
 ## Features
 
