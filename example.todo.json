@@ -1,0 +1,201 @@
+{
+  "type": "todo-project",
+  "version": 2,
+  "project": {
+    "id": "example-launch-plan",
+    "name": "Website launch",
+    "created": "2026-07-27T09:00:00.000Z",
+    "updated": "2026-08-25T16:20:00.000Z",
+    "types": [
+      {
+        "id": "ty01",
+        "name": "Build",
+        "color": "#3b82f6"
+      },
+      {
+        "id": "ty02",
+        "name": "Content",
+        "color": "#a855f7"
+      },
+      {
+        "id": "ty03",
+        "name": "Infra",
+        "color": "#14b8a6"
+      },
+      {
+        "id": "ty04",
+        "name": "Admin",
+        "color": "#f59e0b"
+      },
+      {
+        "id": "ty05",
+        "name": "Personal",
+        "color": "#22c55e"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "tk06",
+        "title": "Ship the launch landing page",
+        "description": "Hero, pricing table, and the sign-up form. Everything else on the site can wait until after launch day.",
+        "typeId": "ty01",
+        "priority": "critical",
+        "done": false,
+        "created": "2026-08-14T10:00:00.000Z"
+      },
+      {
+        "id": "tk07",
+        "title": "Fix the checkout 500 on Safari",
+        "description": "Only reproduces on Safari 17 with third-party cookies blocked. Payment intent is created but the redirect back drops the session.",
+        "typeId": "ty01",
+        "priority": "critical",
+        "done": false,
+        "created": "2026-08-24T10:00:00.000Z"
+      },
+      {
+        "id": "tk08",
+        "title": "Write the launch announcement",
+        "description": "Two versions: a short one for social and a longer post for the blog. Keep the tone plain — what it does, who it is for, what it costs.",
+        "typeId": "ty02",
+        "priority": "high",
+        "done": false,
+        "created": "2026-08-17T10:00:00.000Z"
+      },
+      {
+        "id": "tk09",
+        "title": "Set up automated database backups",
+        "description": "Nightly snapshot to object storage, 30 days of retention. Restore has to be tested at least once before this counts as done.",
+        "typeId": "ty03",
+        "priority": "high",
+        "done": false,
+        "created": "2026-08-12T10:00:00.000Z"
+      },
+      {
+        "id": "tk10",
+        "title": "Proofread the pricing page",
+        "description": "Two people, fresh eyes. Numbers and currency symbols especially.",
+        "typeId": "ty02",
+        "priority": "medium",
+        "done": false,
+        "created": "2026-08-21T10:00:00.000Z"
+      },
+      {
+        "id": "tk11",
+        "title": "Add a status page",
+        "description": "",
+        "typeId": "ty03",
+        "priority": "medium",
+        "done": false,
+        "created": "2026-08-19T10:00:00.000Z"
+      },
+      {
+        "id": "tk12",
+        "title": "Renew the domain",
+        "description": "Expires in November. Turn on auto-renew while you are in there so this stops coming back.",
+        "typeId": "ty04",
+        "priority": "medium",
+        "done": false,
+        "created": "2026-08-06T10:00:00.000Z"
+      },
+      {
+        "id": "tk13",
+        "title": "Compress the screenshots in /assets",
+        "description": "Some of them are 4 MB PNGs. WebP at 85% is indistinguishable and about a tenth the size.",
+        "typeId": "ty01",
+        "priority": "low",
+        "done": false,
+        "created": "2026-08-20T10:00:00.000Z"
+      },
+      {
+        "id": "tk14",
+        "title": "Pick a font for the docs site",
+        "description": "",
+        "typeId": "ty02",
+        "priority": "low",
+        "done": false,
+        "created": "2026-08-22T10:00:00.000Z"
+      },
+      {
+        "id": "tk15",
+        "title": "Book the team dinner for launch week",
+        "description": "Somewhere that takes a booking for eight. Thursday works for everyone.",
+        "typeId": "ty05",
+        "priority": "low",
+        "done": false,
+        "created": "2026-08-23T10:00:00.000Z"
+      },
+      {
+        "id": "tk16",
+        "title": "Look into a native mobile app",
+        "description": "Not before there are real users asking for it. Noting it here so it stops rattling around.",
+        "typeId": "ty01",
+        "priority": "someday",
+        "done": false,
+        "created": "2026-07-27T10:00:00.000Z"
+      },
+      {
+        "id": "tk17",
+        "title": "Redesign the logo",
+        "description": "",
+        "typeId": "ty02",
+        "priority": "someday",
+        "done": false,
+        "created": "2026-08-01T10:00:00.000Z"
+      },
+      {
+        "id": "tk18",
+        "title": "Register the .com and .dev domains",
+        "description": "",
+        "typeId": "ty04",
+        "priority": "high",
+        "done": true,
+        "created": "2026-08-05T10:00:00.000Z"
+      },
+      {
+        "id": "tk19",
+        "title": "Set up CI on the main branch",
+        "description": "Lint, typecheck, and the test suite on every push. Required to pass before merge.",
+        "typeId": "ty03",
+        "priority": "high",
+        "done": true,
+        "created": "2026-08-08T10:00:00.000Z"
+      },
+      {
+        "id": "tk20",
+        "title": "Draft the privacy policy",
+        "description": "",
+        "typeId": "ty04",
+        "priority": "medium",
+        "done": true,
+        "created": "2026-08-10T10:00:00.000Z"
+      },
+      {
+        "id": "tk21",
+        "title": "Move the repo off the personal account",
+        "description": "",
+        "typeId": "ty04",
+        "priority": "medium",
+        "done": true,
+        "created": "2026-08-11T10:00:00.000Z"
+      },
+      {
+        "id": "tk22",
+        "title": "Choose an error-tracking service",
+        "description": "",
+        "typeId": "ty03",
+        "priority": "low",
+        "done": true,
+        "created": "2026-08-15T10:00:00.000Z"
+      },
+      {
+        "id": "tk23",
+        "title": "Order a second monitor",
+        "description": "",
+        "typeId": "ty05",
+        "priority": "low",
+        "done": true,
+        "created": "2026-08-18T10:00:00.000Z"
+      }
+    ]
+  }
+}

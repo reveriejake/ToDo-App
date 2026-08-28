@@ -1,0 +1,1858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Todo</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --panel-2: #f0f2f5;
+    --text: #1b1e23;
+    --muted: #6b7280;
+    --border: #e2e5ea;
+    --accent: #3b6ef5;
+    --accent-soft: #e7edfe;
+    --danger: #d1435b;
+    --done: #9aa1ac;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.06);
+    --overlay: rgba(16,24,40,.35);
+    --pri-critical: #ef4444;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --panel: #1c1f25;
+      --panel-2: #23272f;
+      --text: #e8eaed;
+      --muted: #9aa1ac;
+      --border: #2c313a;
+      --accent: #6f92ff;
+      --accent-soft: #23304f;
+      --danger: #ef6b7f;
+      --done: #6b7280;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+      --overlay: rgba(0,0,0,.55);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  .app { display: grid; grid-template-columns: 264px 1fr; height: 100vh; }
+
+  /* ---------- shared controls ---------- */
+  .btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 11px;
+    color: var(--text);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--panel-2); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.danger { color: var(--danger); }
+  .btn.danger:hover { background: var(--panel-2); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .link-btn {
+    background: transparent; border: 0; color: var(--muted);
+    font-size: 13px; padding: 5px 6px; border-radius: 7px;
+  }
+  .link-btn:hover { color: var(--text); background: var(--panel-2); }
+  select.mini {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 8px; font-size: 13px; max-width: 170px;
+  }
+  .icon-btn {
+    background: transparent; border: 0; border-radius: 8px;
+    width: 26px; height: 26px; display: grid; place-items: center;
+    color: var(--muted); font-size: 17px; line-height: 1; flex: none;
+  }
+  .icon-btn:hover { background: var(--panel-2); color: var(--text); }
+
+  /* ---------- sidebar ---------- */
+  .sidebar {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .brand {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; padding: 16px 12px 10px;
+  }
+  .brand h1 {
+    font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); margin: 0; font-weight: 600;
+  }
+  .projects { list-style: none; margin: 0; padding: 2px 8px 8px; overflow-y: auto; flex: 1; min-height: 0; }
+  .projects li { margin-bottom: 2px; position: relative; }
+  .project {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 8px 10px; border: 0; border-radius: 8px;
+    background: transparent; text-align: left; color: var(--text);
+  }
+  .project:hover { background: var(--panel-2); }
+  .project.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .project .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .project .dot { color: var(--muted); font-size: 15px; line-height: 1; }
+  .project .count {
+    font-size: 12px; color: var(--muted); background: var(--panel-2);
+    border-radius: 999px; padding: 1px 7px; font-weight: 400;
+  }
+  .project.active .count { background: var(--panel); color: var(--accent); }
+  .row-menu {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    opacity: 0; background: transparent;
+  }
+  li:hover .row-menu, .row-menu:focus { opacity: 1; }
+  li:hover .project .count, li:hover .project .crit { visibility: hidden; }
+  .project .crit {
+    font-size: 11px; font-weight: 700; line-height: 1.5;
+    color: #fff; background: var(--pri-critical);
+    border-radius: 999px; padding: 1px 7px; flex: none;
+  }
+
+  .sidebar-foot { border-top: 1px solid var(--border); padding: 10px; display: grid; gap: 6px; }
+  .sidebar-foot .btn { text-align: left; }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+
+  /* ---------- main ---------- */
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .topbar { display: flex; align-items: center; gap: 10px; padding: 16px 24px 2px; }
+  .title {
+    font-size: 22px; font-weight: 650; border: 1px solid transparent;
+    border-radius: 8px; padding: 3px 8px; margin: -3px -8px;
+    background: transparent; min-width: 0; flex: 1;
+  }
+  .title:focus { outline: none; border-color: var(--border); background: var(--panel); }
+  .meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
+
+  .filebar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 24px 12px; font-size: 13px; color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .filebar .file-name { color: var(--text); }
+  .filebar .unsaved { color: var(--accent); }
+  .filebar .spacer { flex: 1; }
+
+  .toolbar {
+    display: flex; gap: 8px; align-items: center;
+    padding: 0 24px 12px; flex-wrap: wrap;
+  }
+  .filters { display: flex; gap: 2px; background: var(--panel-2); padding: 3px; border-radius: 9px; }
+  .filters button { border: 0; background: transparent; border-radius: 7px; padding: 5px 12px; color: var(--muted); font-size: 13px; }
+  .filters button.active { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+  .toolbar .spacer { flex: 1; }
+
+  .composer { display: flex; gap: 8px; padding: 0 24px 8px; flex-wrap: wrap; }
+  .composer input {
+    flex: 1; min-width: 180px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow);
+  }
+  .composer input:focus { outline: none; border-color: var(--accent); }
+  .composer select { border-radius: 10px; padding: 0 10px; }
+
+  .list { list-style: none; margin: 0; padding: 4px 24px 32px; overflow-y: auto; flex: 1; min-height: 0; }
+  .task {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px; margin-bottom: 6px;
+  }
+  .task.dragging { opacity: .4; }
+  .task.drop-target { border-color: var(--accent); }
+  .grip { color: var(--border); cursor: grab; user-select: none; padding-top: 1px; line-height: 1; }
+  .task:hover .grip { color: var(--muted); }
+  .task input[type=checkbox] { margin-top: 4px; width: 17px; height: 17px; accent-color: var(--accent); flex: none; }
+  .task .body { flex: 1; min-width: 0; }
+  .task .title-line { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .task .task-title {
+    background: transparent; border: 0; padding: 0; text-align: left;
+    color: inherit; font: inherit; border-radius: 4px;
+    word-break: break-word; cursor: pointer;
+  }
+  .task .task-title:hover { text-decoration: underline; text-underline-offset: 2px; }
+  .task.done .task-title { color: var(--done); text-decoration: line-through; }
+  .task .desc-preview {
+    color: var(--muted); font-size: 13px; margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .task .del {
+    background: transparent; border: 0; color: var(--muted);
+    border-radius: 6px; padding: 0 6px; font-size: 16px; line-height: 1.4;
+    opacity: 0; flex: none;
+  }
+  .task:hover .del, .task .del:focus { opacity: 1; }
+  .task .del:hover { color: var(--danger); background: var(--panel-2); }
+
+  .chip {
+    font-size: 11px; font-weight: 600; letter-spacing: .02em;
+    padding: 1px 8px; border-radius: 999px; border: 1px solid;
+    white-space: nowrap; flex: none;
+  }
+  .chip.solid { color: #fff; font-weight: 700; }
+
+  /* ---------- priority ---------- */
+  /* A coloured left edge lets a long list scan by urgency at a glance. */
+  .task[data-pri] { box-shadow: inset 3px 0 0 var(--pri); }
+  .task[data-pri="critical"] { border-color: var(--pri); }
+  .task.done[data-pri] { box-shadow: inset 3px 0 0 var(--border); }
+  .task.done .chip { opacity: .55; }
+
+  .empty { color: var(--muted); text-align: center; padding: 48px 24px; font-size: 14px; }
+
+  /* ---------- popup menu ---------- */
+  .menu {
+    position: fixed; z-index: 40; min-width: 176px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: var(--shadow); padding: 4px;
+  }
+  .menu button {
+    display: block; width: 100%; text-align: left; border: 0;
+    background: transparent; border-radius: 6px; padding: 7px 10px; font-size: 13px;
+  }
+  .menu button:hover { background: var(--panel-2); }
+  .menu button.danger { color: var(--danger); }
+  .menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 2px; }
+
+  /* ---------- dialogs ---------- */
+  dialog {
+    border: 1px solid var(--border); border-radius: 14px; padding: 0;
+    background: var(--panel); color: var(--text);
+    box-shadow: 0 24px 60px rgba(0,0,0,.28);
+    width: min(560px, calc(100vw - 32px));
+  }
+  dialog::backdrop { background: var(--overlay); }
+  .dlg-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 18px 8px;
+  }
+  .dlg-head h2 { margin: 0; font-size: 16px; font-weight: 650; flex: 1; }
+  .dlg-body { padding: 6px 18px 4px; display: grid; gap: 12px; }
+  .dlg-foot {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 18px 16px;
+  }
+  .dlg-foot .spacer { flex: 1; }
+  .field { display: grid; gap: 5px; }
+  .field label { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+  .field input[type=text], .field textarea, .field select {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 9px;
+    padding: 9px 11px; width: 100%;
+  }
+  .field textarea { resize: vertical; min-height: 130px; line-height: 1.55; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 520px) { .field-row { grid-template-columns: 1fr; } }
+  .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--accent); }
+  .dlg-note { font-size: 12px; color: var(--muted); }
+
+  .type-list { display: grid; gap: 6px; max-height: 320px; overflow-y: auto; padding: 1px; }
+  .type-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 7px 8px 7px 10px;
+  }
+  .swatches { display: flex; gap: 4px; flex: none; }
+  .swatch {
+    width: 15px; height: 15px; border-radius: 50%; border: 2px solid transparent;
+    padding: 0; background-clip: padding-box;
+  }
+  .swatch.selected { border-color: var(--text); }
+  .type-row input[type=text] {
+    flex: 1; min-width: 0; background: transparent; border: 0; padding: 2px 4px;
+    border-radius: 6px;
+  }
+  .type-row input[type=text]:focus { outline: none; background: var(--panel-2); }
+  .type-row .usage { font-size: 12px; color: var(--muted); flex: none; }
+  .add-type { display: flex; gap: 8px; }
+  .add-type input { flex: 1; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; z-index: 60;
+    transform: translate(-50%, 12px);
+    background: var(--panel); border: 1px solid var(--border);
+    box-shadow: var(--shadow); border-radius: 10px;
+    padding: 9px 16px; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 100dvh; }
+    .sidebar { border-right: 0; border-bottom: 1px solid var(--border); max-height: 42vh; }
+    .topbar, .filebar, .toolbar, .composer, .list { padding-left: 14px; padding-right: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <h1>Projects</h1>
+      <button class="icon-btn" id="newProject" title="New project (Ctrl+Shift+N)">+</button>
+    </div>
+    <ul class="projects" id="projectList"></ul>
+    <div class="sidebar-foot">
+      <button class="btn" id="openFile">Open project file…</button>
+      <button class="btn" id="watchFolder">Watch folder…</button>
+      <div class="hint" id="storageHint">Projects autosave in this browser. Drop a <code>.json</code> file anywhere to open it.</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <input class="title" id="projectTitle" aria-label="Project name">
+      <span class="meta" id="projectMeta"></span>
+    </div>
+
+    <div class="filebar">
+      <span id="fileStatus"></span>
+      <span class="spacer"></span>
+      <button class="btn" id="relink" hidden>Reconnect file</button>
+      <button class="btn" id="saveFile">Save</button>
+      <button class="btn" id="saveFileAs">Save as…</button>
+    </div>
+
+    <div class="toolbar">
+      <div class="filters" id="filters">
+        <button data-filter="all" class="active">All</button>
+        <button data-filter="active">Active</button>
+        <button data-filter="done">Done</button>
+      </div>
+      <select class="mini" id="priorityFilter" title="Filter by priority"></select>
+      <select class="mini" id="typeFilter" title="Filter by task type"></select>
+      <button class="btn" id="editTypes">Task types…</button>
+      <span class="spacer"></span>
+      <select class="mini" id="sortBy" title="Sort order">
+        <option value="manual">Manual order</option>
+        <option value="priority">By priority</option>
+      </select>
+      <button class="link-btn" id="clearDone">Clear completed</button>
+    </div>
+
+    <div class="composer">
+      <input id="newTask" placeholder="Add a task and press Enter" autocomplete="off">
+      <select class="mini" id="newTaskPriority" title="Priority for new tasks"></select>
+      <select class="mini" id="newTaskType" title="Type for new tasks"></select>
+    </div>
+
+    <ul class="list" id="taskList"></ul>
+  </main>
+</div>
+
+<!-- task detail -->
+<dialog id="taskDialog">
+  <div class="dlg-head">
+    <input type="checkbox" id="taskDone" title="Mark complete" style="width:17px;height:17px;accent-color:var(--accent)">
+    <h2>Task</h2>
+    <button class="icon-btn" data-close="taskDialog" title="Close">×</button>
+  </div>
+  <div class="dlg-body">
+    <div class="field">
+      <label for="taskTitle">Title</label>
+      <input type="text" id="taskTitle" autocomplete="off">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="taskPriority">Priority</label>
+        <select id="taskPriority"></select>
+      </div>
+      <div class="field">
+        <label for="taskType">Type</label>
+        <select id="taskType"></select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="taskDesc">Description</label>
+      <textarea id="taskDesc" placeholder="Notes, links, acceptance criteria…"></textarea>
+    </div>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn danger" id="taskDelete">Delete task</button>
+    <span class="spacer"></span>
+    <span class="dlg-note" id="taskSaved">Changes save as you type</span>
+    <button class="btn primary" data-close="taskDialog">Done</button>
+  </div>
+</dialog>
+
+<!-- type editor -->
+<dialog id="typeDialog">
+  <div class="dlg-head">
+    <h2>Task types</h2>
+    <button class="icon-btn" data-close="typeDialog" title="Close">×</button>
+  </div>
+  <div class="dlg-body">
+    <div class="dlg-note" id="typeScope"></div>
+    <div class="type-list" id="typeList"></div>
+    <div class="add-type">
+      <input type="text" id="newTypeName" placeholder="New type name" autocomplete="off"
+             style="background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:9px 11px">
+      <button class="btn" id="addType">Add type</button>
+    </div>
+  </div>
+  <div class="dlg-foot">
+    <span class="spacer"></span>
+    <button class="btn primary" data-close="typeDialog">Done</button>
+  </div>
+</dialog>
+
+<!-- text prompt -->
+<dialog id="promptDialog">
+  <form method="dialog">
+    <div class="dlg-head"><h2 id="promptTitle">Name</h2></div>
+    <div class="dlg-body">
+      <div class="field">
+        <label id="promptLabel" for="promptInput">Name</label>
+        <input type="text" id="promptInput" autocomplete="off">
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="promptCancel">Cancel</button>
+      <button class="btn primary" value="ok" id="promptOk">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- confirm / choice -->
+<dialog id="askDialog">
+  <form method="dialog">
+    <div class="dlg-head"><h2 id="askTitle">Are you sure?</h2></div>
+    <div class="dlg-body"><div class="dlg-note" id="askBody"></div></div>
+    <div class="dlg-foot">
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="askCancel">Cancel</button>
+      <button class="btn" type="button" id="askExtra" hidden></button>
+      <button class="btn primary" value="ok" id="askOk">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<input type="file" id="filePicker" accept="application/json,.json" multiple hidden>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const STORE_KEY = 'todo.projects.v2';
+  const LEGACY_KEY = 'todo.projects.v1';
+  const FILE_VERSION = 2;
+  const HAS_FS = typeof window.showSaveFilePicker === 'function';
+
+  const PALETTE = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6', '#ec4899', '#64748b'];
+  const DEFAULT_TYPES = [
+    { name: 'Work', color: '#3b82f6' },
+    { name: 'Personal', color: '#22c55e' },
+    { name: 'Errand', color: '#f59e0b' }
+  ];
+
+  // Fixed tiers, highest first. Unlike types these are the same in every project,
+  // so a file written here reads the same way anywhere else.
+  const PRIORITIES = [
+    { id: 'critical', short: 'Critical', name: 'Critical for launch', color: '#ef4444' },
+    { id: 'high',     short: 'High',     name: 'High',                color: '#f97316' },
+    { id: 'medium',   short: 'Medium',   name: 'Medium',              color: '#d97706' },
+    { id: 'low',      short: 'Low',      name: 'Low',                 color: '#3b82f6' },
+    { id: 'someday',  short: 'Someday',  name: 'Someday',             color: '#64748b' }
+  ];
+  const PRIORITY_IDS = new Set(PRIORITIES.map(p => p.id));
+  const priorityOf = id => PRIORITIES.find(p => p.id === id) || null;
+  // Unset sorts below every named tier.
+  const priRank = task => {
+    const i = PRIORITIES.findIndex(p => p.id === task.priority);
+    return i === -1 ? PRIORITIES.length : i;
+  };
+  const isCritical = t => !t.done && t.priority === 'critical';
+
+  const WATCH_MS = 1500;
+  const DIR_KEY = '__watch_dir__';
+
+  const state = {
+    projects: [], currentId: null, filter: 'all',
+    typeFilter: 'all', newType: '',
+    priorityFilter: 'all', newPriority: '', sort: 'manual'
+  };
+  const handles = new Map();   // projectId -> FileSystemFileHandle (this session)
+  const stamps = new Map();    // projectId -> "lastModified:size" we last read or wrote
+  const liveFiles = new Set(); // projectIds whose file is readable right now
+  const fileTimes = new Map(); // projectId -> the file's lastModified (ms), this session
+  const dirFiles = new Map();  // file name in the watched folder -> last seen stamp
+  let dirHandle = null;        // watched folder, if any
+
+  const el = id => document.getElementById(id);
+  const ui = {
+    projectList: el('projectList'), title: el('projectTitle'), meta: el('projectMeta'),
+    fileStatus: el('fileStatus'), saveFile: el('saveFile'), saveFileAs: el('saveFileAs'),
+    taskList: el('taskList'), newTask: el('newTask'), newTaskType: el('newTaskType'),
+    filters: el('filters'), typeFilter: el('typeFilter'), filePicker: el('filePicker'),
+    priorityFilter: el('priorityFilter'), newTaskPriority: el('newTaskPriority'), sortBy: el('sortBy'),
+    toast: el('toast'), storageHint: el('storageHint'),
+    relink: el('relink'), watchFolder: el('watchFolder')
+  };
+
+  /* ================= model ================= */
+
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const now = () => new Date().toISOString();
+
+  // "today at 3:42 PM" / "yesterday at 3:42 PM" / "24 Aug at 3:42 PM" / "24 Aug 2024 at 3:42 PM"
+  function whenText(value) {
+    const d = value instanceof Date ? value : new Date(value);
+    if (!value || isNaN(d)) return '';
+    const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const today = new Date();
+    const midnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const days = Math.floor((midnight - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+    if (days === 0) return 'today at ' + time;
+    if (days === 1) return 'yesterday at ' + time;
+    const date = d.getFullYear() === today.getFullYear()
+      ? d.toLocaleDateString([], { day: 'numeric', month: 'short' })
+      : d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+    return date + ' at ' + time;
+  }
+
+  const whenFull = value => {
+    const d = value instanceof Date ? value : new Date(value);
+    return (!value || isNaN(d)) ? '' : d.toLocaleString();
+  };
+
+  function makeTypes(defs) {
+    return defs.map(t => ({ id: uid(), name: t.name, color: t.color }));
+  }
+
+  function makeProject(name, opts = {}) {
+    return {
+      id: uid(),
+      name: name || 'Untitled project',
+      created: now(),
+      updated: now(),
+      types: opts.types || makeTypes(DEFAULT_TYPES),
+      tasks: opts.tasks || [],
+      file: null,      // { name } of the last file this project was written to
+      dirty: false     // has changed since that write
+    };
+  }
+
+  function normalizeProject(raw) {
+    const types = (Array.isArray(raw.types) ? raw.types : []).map(t => ({
+      id: t.id || uid(),
+      name: String(t && t.name != null ? t.name : 'Type'),
+      color: /^#[0-9a-f]{6}$/i.test(t && t.color) ? t.color : PALETTE[0]
+    }));
+    const typeIds = new Set(types.map(t => t.id));
+    return {
+      id: raw.id || uid(),
+      name: typeof raw.name === 'string' ? raw.name : 'Untitled project',
+      created: raw.created || now(),
+      updated: raw.updated || now(),
+      types,
+      tasks: (Array.isArray(raw.tasks) ? raw.tasks : []).map(t => ({
+        id: (t && t.id) || uid(),
+        // v1 files stored the task text under `text`
+        title: String((t && (t.title != null ? t.title : t.text)) || ''),
+        description: String((t && t.description) || ''),
+        typeId: t && typeIds.has(t.typeId) ? t.typeId : null,
+        priority: t && PRIORITY_IDS.has(t.priority) ? t.priority : null,
+        done: !!(t && t.done),
+        created: (t && t.created) || now()
+      })),
+      file: raw.file && raw.file.name ? { name: raw.file.name } : null,
+      dirty: !!raw.dirty
+    };
+  }
+
+  const current = () => state.projects.find(p => p.id === state.currentId) || null;
+  const typeOf = (project, id) => project.types.find(t => t.id === id) || null;
+
+  function save() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        version: FILE_VERSION, projects: state.projects, currentId: state.currentId
+      }));
+    } catch (e) {
+      toast('Could not autosave to this browser (storage blocked).');
+    }
+  }
+
+  // Any edit to the current project: bump timestamps, flag the file copy as stale, redraw.
+  function touch(render = true) {
+    const p = current();
+    if (p) {
+      p.updated = now();
+      if (p.file) p.dirty = true;
+    }
+    save();
+    if (render) renderAll();
+  }
+
+  function load() {
+    let data = readStore(STORE_KEY);
+    if (!data) {
+      const legacy = readStore(LEGACY_KEY);
+      if (legacy) {
+        data = legacy;
+        toast('Imported your existing projects.');
+      }
+    }
+    if (data && Array.isArray(data.projects) && data.projects.length) {
+      state.projects = data.projects.map(normalizeProject);
+      state.currentId = data.currentId;
+    }
+    if (!state.projects.length) {
+      const seed = makeProject('My tasks');
+      seed.tasks = [
+        { id: uid(), title: 'Click a task title to add a description', description: 'This panel is the description. It saves as you type — press Esc or Done to close.', typeId: seed.types[0].id, priority: 'critical', done: false, created: now() },
+        { id: uid(), title: 'Set a priority on a task', description: 'Pick a tier next to the add box, or open a task and change it there. "By priority" in the toolbar sorts Critical for launch to the top.', typeId: seed.types[0].id, priority: 'high', done: false, created: now() },
+        { id: uid(), title: 'Edit your task types', description: 'Use "Task types…" in the toolbar. Types are per project, so each project can have its own set.', typeId: seed.types[1].id, priority: 'low', done: false, created: now() }
+      ];
+      state.projects = [seed];
+    }
+    if (!current()) state.currentId = state.projects[0].id;
+  }
+
+  function readStore(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;   // blocked or corrupt — start fresh
+    }
+  }
+
+  /* ================= file handles (IndexedDB) ================= */
+  // Handles survive reloads, so "Save" keeps writing to the same file across sessions.
+
+  const handleStore = {
+    db: null,
+    async open() {
+      if (this.db) return this.db;
+      this.db = await new Promise((resolve, reject) => {
+        const req = indexedDB.open('todo-file-handles', 1);
+        req.onupgradeneeded = () => req.result.createObjectStore('handles');
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      return this.db;
+    },
+    async run(mode, fn) {
+      try {
+        const db = await this.open();
+        return await new Promise((resolve, reject) => {
+          const tx = db.transaction('handles', mode);
+          const req = fn(tx.objectStore('handles'));
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      } catch (e) {
+        return null;   // storage unavailable — handles just won't persist
+      }
+    },
+    get(key) { return this.run('readonly', s => s.get(key)); },
+    put(key, val) { return this.run('readwrite', s => s.put(val, key)); },
+    del(key) { return this.run('readwrite', s => s.delete(key)); }
+  };
+
+  async function restoreHandles() {
+    if (!HAS_FS) return;
+    for (const p of state.projects) {
+      if (!p.file) continue;
+      const handle = await handleStore.get(p.id);
+      if (handle) handles.set(p.id, handle);
+    }
+    dirHandle = await handleStore.get(DIR_KEY);
+    renderFileBar();
+    renderWatchUI();
+    startWatching();
+  }
+
+  /* ================= file save / open ================= */
+
+  const slug = name => (name || 'project').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'project';
+
+  function exportPayload(project) {
+    return {
+      type: 'todo-project',
+      version: FILE_VERSION,
+      project: {
+        id: project.id, name: project.name,
+        created: project.created, updated: project.updated,
+        types: project.types, tasks: project.tasks
+      }
+    };
+  }
+
+  async function saveProject(project, saveAs) {
+    if (!project) return;
+    const text = JSON.stringify(exportPayload(project), null, 2);
+
+    if (!HAS_FS) {                       // browsers without the file picker: download a copy
+      downloadFile(slug(project.name) + '.todo.json', text);
+      project.file = { name: slug(project.name) + '.todo.json' };
+      project.dirty = false;
+      fileTimes.set(project.id, Date.now());
+      save(); renderAll();
+      toast('Downloaded ' + project.file.name);
+      return;
+    }
+
+    try {
+      let handle = saveAs ? null : handles.get(project.id);
+      if (handle && !(await ensurePermission(handle))) handle = null;
+
+      if (!handle) {
+        handle = await window.showSaveFilePicker({
+          suggestedName: (project.file && project.file.name) || slug(project.name) + '.todo.json',
+          types: [{ description: 'Todo project', accept: { 'application/json': ['.json'] } }]
+        });
+        handles.set(project.id, handle);
+        await handleStore.put(project.id, handle);
+      }
+
+      const writable = await handle.createWritable();
+      await writable.write(text);
+      await writable.close();
+
+      project.file = { name: handle.name };
+      project.dirty = false;
+      await noteFileStamp(project.id, handle);    // don't treat our own write as an external change
+      save(); renderAll();
+      toast('Saved to ' + handle.name);
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;                 // user closed the picker
+      if (e && e.name === 'SecurityError') {                    // e.g. opened via file://
+        downloadFile(slug(project.name) + '.todo.json', text);
+        toast('Downloaded a copy (this page can\'t write files directly).');
+        return;
+      }
+      toast('Could not save: ' + (e && e.message ? e.message : 'unknown error'));
+    }
+  }
+
+  async function ensurePermission(handle) {
+    try {
+      if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') return true;
+      return (await handle.requestPermission({ mode: 'readwrite' })) === 'granted';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function downloadFile(name, text) {
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function openProjectFile() {
+    if (!HAS_FS) { ui.filePicker.value = ''; ui.filePicker.click(); return; }
+    let picked;
+    try {
+      picked = await window.showOpenFilePicker({
+        multiple: true,
+        types: [{ description: 'Todo project', accept: { 'application/json': ['.json'] } }]
+      });
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+      ui.filePicker.value = ''; ui.filePicker.click();          // fall back to the plain picker
+      return;
+    }
+    for (const handle of picked) {
+      const file = await handle.getFile();
+      await importText(await file.text(), file.name, handle);
+    }
+  }
+
+  async function importText(text, fileName, handle, modifiedAt) {
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      toast(fileName + ' is not valid JSON.');
+      return;
+    }
+
+    const incoming = data && data.project ? [data.project]
+      : data && Array.isArray(data.projects) ? data.projects
+      : Array.isArray(data) ? data
+      : data && Array.isArray(data.tasks) ? [data]
+      : null;
+
+    if (!incoming || !incoming.length) {
+      toast('No project found in ' + fileName + '.');
+      return;
+    }
+
+    let last = null;
+    for (const raw of incoming) {
+      const proj = normalizeProject(raw);
+      proj.file = { name: fileName };
+      proj.dirty = false;
+
+      const existing = state.projects.find(p => p.id === proj.id);
+      if (existing) {
+        const choice = await ask({
+          title: 'Already open',
+          body: '"' + existing.name + '" is already open in this browser. Replace it with the contents of ' + fileName + ', or open the file as a separate copy?',
+          okText: 'Replace', extraText: 'Open as copy'
+        });
+        if (!choice) continue;
+        if (choice === 'ok') {
+          Object.assign(existing, proj);
+          last = existing;
+          if (modifiedAt) fileTimes.set(existing.id, modifiedAt);
+          if (handle) { handles.set(existing.id, handle); await handleStore.put(existing.id, handle); await noteFileStamp(existing.id, handle); }
+          continue;
+        }
+        proj.id = uid();
+        proj.name += ' (copy)';
+      }
+
+      state.projects.push(proj);
+      last = proj;
+      if (modifiedAt) fileTimes.set(proj.id, modifiedAt);
+      if (handle) { handles.set(proj.id, handle); await handleStore.put(proj.id, handle); await noteFileStamp(proj.id, handle); }
+    }
+
+    if (!last) return;
+    state.currentId = last.id;
+    save(); renderAll();
+    toast('Opened "' + last.name + '"' + (handle ? ' — Save writes back to ' + fileName : ''));
+  }
+
+  /* ================= watching files on disk ================= */
+  // Anything that edits a linked .json outside the app — an editor, a script, an AI
+  // agent — shows up here within a second or two without a page reload.
+
+  let watchTimer = null;
+  let polling = false;
+
+  const stampOf = file => file.lastModified + ':' + file.size;
+
+  async function hasPermission(handle, mode) {
+    try {
+      return (await handle.queryPermission({ mode })) === 'granted';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Remember the state of a file we just read or wrote, so our own writes
+  // don't come back to us as an external change.
+  async function noteFileStamp(projectId, handle) {
+    try {
+      const file = await handle.getFile();
+      stamps.set(projectId, stampOf(file));
+      fileTimes.set(projectId, file.lastModified);
+      liveFiles.add(projectId);
+    } catch (e) {
+      liveFiles.delete(projectId);
+    }
+  }
+
+  function startWatching() {
+    if (!HAS_FS || watchTimer) return;
+    watchTimer = setInterval(pollFiles, WATCH_MS);
+    pollFiles();
+  }
+
+  async function pollFiles() {
+    if (!HAS_FS || polling || document.hidden) return;
+    polling = true;
+    try {
+      for (const project of [...state.projects]) {
+        const handle = handles.get(project.id);
+        if (!handle) { liveFiles.delete(project.id); continue; }
+        if (!(await hasPermission(handle, 'read'))) { liveFiles.delete(project.id); continue; }
+
+        let file;
+        try {
+          file = await handle.getFile();            // renamed or deleted since we linked it
+        } catch (e) {
+          liveFiles.delete(project.id);
+          continue;
+        }
+        liveFiles.add(project.id);
+        fileTimes.set(project.id, file.lastModified);
+
+        const stamp = stampOf(file);
+        if (stamps.get(project.id) === stamp) continue;
+        stamps.set(project.id, stamp);
+        await applyExternalChange(project, await file.text(), handle.name);
+      }
+      if (dirHandle) await scanFolder();
+      renderFileBar();
+    } finally {
+      polling = false;
+    }
+  }
+
+  function contentOf(project) {
+    return JSON.stringify({ name: project.name, types: project.types, tasks: project.tasks });
+  }
+
+  async function applyExternalChange(project, text, fileName) {
+    let incoming;
+    try {
+      incoming = normalizeProject(pickProject(JSON.parse(text)));
+    } catch (e) {
+      toast(fileName + ' changed on disk but is not a readable project file.');
+      return;
+    }
+    if (!incoming || contentOf(project) === contentOf(incoming)) return;   // no real change
+
+    if (project.dirty) {
+      const choice = await ask({
+        title: fileName + ' changed on disk',
+        body: 'You also have unsaved changes to "' + project.name + '" here. Reload the file and drop your changes, or keep yours and overwrite the file on your next save?',
+        okText: 'Reload from disk', extraText: 'Keep mine'
+      });
+      if (choice !== 'ok') return;
+    }
+
+    // A task open in the modal may not exist any more — let the dialog go quietly.
+    if (openTaskRef && openTaskRef.project === project) {
+      openTaskRef = null;
+      el('taskDialog').close();
+    }
+
+    project.name = incoming.name;
+    project.types = incoming.types;
+    project.tasks = incoming.tasks;
+    project.updated = incoming.updated;
+    project.dirty = false;
+
+    save();
+    renderAll();
+    if (el('typeDialog').open) renderTypeEditor();
+    toast('Reloaded ' + fileName + ' (changed on disk)');
+  }
+
+  function pickProject(data) {
+    if (!data) return null;
+    if (data.project) return data.project;
+    if (Array.isArray(data.projects) && data.projects.length) return data.projects[0];
+    if (Array.isArray(data)) return data[0] || null;
+    if (Array.isArray(data.tasks)) return data;
+    return null;
+  }
+
+  // New .json files dropped into the watched folder open by themselves.
+  async function scanFolder() {
+    if (!dirHandle || !(await hasPermission(dirHandle, 'read'))) return;
+    let entries;
+    try {
+      entries = dirHandle.entries();
+    } catch (e) {
+      return;
+    }
+    for await (const [name, entry] of entries) {
+      if (entry.kind !== 'file' || !name.toLowerCase().endsWith('.json')) continue;
+
+      let file;
+      try { file = await entry.getFile(); } catch (e) { continue; }
+      const stamp = stampOf(file);
+      if (dirFiles.get(name) === stamp) continue;
+      dirFiles.set(name, stamp);
+
+      let linked = false;
+      for (const handle of handles.values()) {
+        if (await handle.isSameEntry(entry)) { linked = true; break; }
+      }
+      if (linked) continue;                       // the per-project pass already covers it
+
+      const text = await file.text();
+      let raw = null;
+      try { raw = pickProject(JSON.parse(text)); } catch (e) { /* not ours */ }
+      if (!raw) continue;
+      await importText(text, name, entry);
+    }
+  }
+
+  async function toggleWatchFolder() {
+    if (dirHandle) {
+      if (!(await hasPermission(dirHandle, 'read'))) {     // paused after a reload — resume it
+        try {
+          if ((await dirHandle.requestPermission({ mode: 'readwrite' })) !== 'granted') return;
+        } catch (e) {
+          return;
+        }
+        renderWatchUI();
+        pollFiles();
+        toast('Watching ' + dirHandle.name + ' again.');
+        return;
+      }
+      dirHandle = null;
+      dirFiles.clear();
+      await handleStore.del(DIR_KEY);
+      renderWatchUI();
+      toast('Stopped watching the folder.');
+      return;
+    }
+
+    try {
+      dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    } catch (e) {
+      return;                                    // cancelled, or not allowed on this origin
+    }
+    await handleStore.put(DIR_KEY, dirHandle);
+    renderWatchUI();
+    toast('Watching ' + dirHandle.name + ' for project files.');
+    pollFiles();
+  }
+
+  async function renderWatchUI() {
+    if (!HAS_FS) { ui.watchFolder.hidden = true; return; }
+    if (!dirHandle) {
+      ui.watchFolder.textContent = 'Watch folder…';
+      ui.storageHint.textContent = 'Projects autosave in this browser. Watch a folder to pick up files edited outside the app.';
+      return;
+    }
+    const granted = await hasPermission(dirHandle, 'read');
+    ui.watchFolder.textContent = granted ? 'Stop watching folder' : 'Resume watching folder';
+    ui.storageHint.textContent = granted
+      ? 'Watching ' + dirHandle.name + ' — new and changed .json files load automatically.'
+      : 'Watching ' + dirHandle.name + ' is paused until you restore access.';
+  }
+
+  // Re-check as soon as the window comes back, so a change made while you were
+  // in an editor is on screen by the time you look.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollFiles(); });
+  window.addEventListener('focus', pollFiles);
+  ui.watchFolder.addEventListener('click', toggleWatchFolder);
+
+  ui.relink.addEventListener('click', async () => {
+    const p = current();
+    if (!p) return;
+    const handle = handles.get(p.id);
+    if (handle) {
+      try {
+        if ((await handle.requestPermission({ mode: 'readwrite' })) === 'granted') {
+          await noteFileStamp(p.id, handle);
+          renderFileBar();
+          pollFiles();
+          return;
+        }
+      } catch (e) { /* fall through to picking the file again */ }
+    }
+    try {
+      const [picked] = await window.showOpenFilePicker({
+        types: [{ description: 'Todo project', accept: { 'application/json': ['.json'] } }]
+      });
+      handles.set(p.id, picked);
+      await handleStore.put(p.id, picked);
+      p.file = { name: picked.name };
+      await noteFileStamp(p.id, picked);
+      save();
+      renderAll();
+      pollFiles();
+    } catch (e) {
+      if (e && e.name !== 'AbortError') toast('Could not reconnect that file.');
+    }
+  });
+
+  /* ================= rendering ================= */
+
+  function renderAll() {
+    renderProjects();
+    renderFileBar();
+    renderWatchUI();
+    renderSelects();
+    renderTasks();
+  }
+
+  function renderProjects() {
+    const p = current();
+    ui.projectList.textContent = '';
+
+    state.projects.forEach(proj => {
+      const open = proj.tasks.filter(t => !t.done).length;
+      const crit = proj.tasks.filter(isCritical).length;
+      const li = document.createElement('li');
+
+      const btn = document.createElement('button');
+      btn.className = 'project' + (proj.id === state.currentId ? ' active' : '');
+      btn.addEventListener('click', () => {
+        state.currentId = proj.id;
+        state.typeFilter = 'all';
+        state.newType = '';
+        state.priorityFilter = 'all';
+        state.newPriority = '';
+        save(); renderAll();
+        ui.newTask.focus();
+      });
+
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = proj.name;
+      btn.appendChild(name);
+
+      if (proj.dirty) {
+        const dot = document.createElement('span');
+        dot.className = 'dot';
+        dot.textContent = '•';
+        dot.title = 'Unsaved changes to ' + proj.file.name;
+        btn.appendChild(dot);
+      }
+      if (crit) {
+        const badge = document.createElement('span');
+        badge.className = 'crit';
+        badge.textContent = crit;
+        badge.title = crit + ' critical for launch';
+        btn.appendChild(badge);
+      }
+      if (open) {
+        const count = document.createElement('span');
+        count.className = 'count';
+        count.textContent = open;
+        btn.appendChild(count);
+      }
+      li.appendChild(btn);
+
+      const menuBtn = document.createElement('button');
+      menuBtn.className = 'icon-btn row-menu';
+      menuBtn.textContent = '⋯';
+      menuBtn.title = 'Project actions';
+      menuBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        openProjectMenu(proj, menuBtn);
+      });
+      li.appendChild(menuBtn);
+
+      ui.projectList.appendChild(li);
+    });
+
+    if (p && document.activeElement !== ui.title) ui.title.value = p.name;
+    if (p) {
+      const done = p.tasks.filter(t => t.done).length;
+      const crit = p.tasks.filter(isCritical).length;
+      const bits = [];
+      if (p.tasks.length) bits.push(done + ' of ' + p.tasks.length + ' done');
+      if (crit) bits.push(crit + ' critical');
+      ui.meta.textContent = bits.length ? bits.join(' · ') : 'No tasks yet';
+    }
+  }
+
+  // " • changed today at 3:42 PM", with the full date/time on hover.
+  function stampEl(verb, value) {
+    const span = document.createElement('span');
+    const text = whenText(value);
+    if (text) {
+      span.textContent = ' • ' + verb + ' ' + text;
+      span.title = verb.charAt(0).toUpperCase() + verb.slice(1) + ' ' + whenFull(value);
+    }
+    return span;
+  }
+
+  function renderFileBar() {
+    const p = current();
+    if (!p) return;
+    ui.fileStatus.textContent = '';
+
+    const linked = !!p.file;
+    const label = document.createElement('span');
+    if (!linked) {
+      label.textContent = HAS_FS ? 'Not saved to a file yet' : 'No file downloaded yet';
+      label.appendChild(stampEl('edited', p.updated));
+    } else {
+      const nameEl = document.createElement('span');
+      nameEl.className = 'file-name';
+      nameEl.textContent = p.file.name;
+      label.appendChild(document.createTextNode(HAS_FS ? 'File: ' : 'Last download: '));
+      label.appendChild(nameEl);
+      const status = document.createElement('span');
+      if (p.dirty) {
+        status.className = 'unsaved';
+        status.textContent = ' • unsaved changes';
+      } else {
+        status.textContent = ' • up to date';
+      }
+      label.appendChild(status);
+      // The file's own modified time when we've been able to read it, otherwise
+      // the last edit made here (all we know about a plain download).
+      const onDisk = fileTimes.get(p.id);
+      label.appendChild(onDisk
+        ? stampEl('changed', new Date(onDisk))
+        : stampEl('edited', p.updated));
+      if (HAS_FS) {
+        const watch = document.createElement('span');
+        watch.textContent = liveFiles.has(p.id) ? ' • watching for changes' : ' • not watching';
+        label.appendChild(watch);
+      }
+    }
+    ui.fileStatus.appendChild(label);
+
+    ui.relink.hidden = !(HAS_FS && linked && !liveFiles.has(p.id));
+    ui.saveFile.textContent = HAS_FS
+      ? (linked && handles.has(p.id) ? 'Save' : 'Save to file…')
+      : 'Download file';
+    ui.saveFileAs.hidden = !HAS_FS;
+    ui.saveFileAs.textContent = 'Save as…';
+  }
+
+  function typeOptions(select, project, value, allLabel) {
+    select.textContent = '';
+    const opts = [[allLabel ? 'all' : '', allLabel || 'No type']];
+    if (allLabel) opts.push(['none', 'No type']);
+    project.types.forEach(t => opts.push([t.id, t.name]));
+
+    opts.forEach(([val, text]) => {
+      const o = document.createElement('option');
+      o.value = val;
+      o.textContent = text;
+      select.appendChild(o);
+    });
+    select.value = opts.some(o => o[0] === value) ? value : opts[0][0];
+  }
+
+  function priorityOptions(select, value, allLabel) {
+    select.textContent = '';
+    const opts = [[allLabel ? 'all' : '', allLabel || 'No priority']];
+    if (allLabel) opts.push(['none', 'No priority']);
+    PRIORITIES.forEach(p => opts.push([p.id, p.name]));
+
+    opts.forEach(([val, text]) => {
+      const o = document.createElement('option');
+      o.value = val;
+      o.textContent = text;
+      select.appendChild(o);
+    });
+    select.value = opts.some(o => o[0] === value) ? value : opts[0][0];
+  }
+
+  function renderSelects() {
+    const p = current();
+    if (!p) return;
+    typeOptions(ui.typeFilter, p, state.typeFilter, 'All types');
+    typeOptions(ui.newTaskType, p, state.newType, null);
+    state.typeFilter = ui.typeFilter.value;
+    state.newType = ui.newTaskType.value;
+
+    priorityOptions(ui.priorityFilter, state.priorityFilter, 'All priorities');
+    priorityOptions(ui.newTaskPriority, state.newPriority, null);
+    state.priorityFilter = ui.priorityFilter.value;
+    state.newPriority = ui.newTaskPriority.value;
+    ui.sortBy.value = state.sort;
+  }
+
+  function visibleTasks(p) {
+    const list = p.tasks.filter(t => {
+      if (state.filter === 'active' && t.done) return false;
+      if (state.filter === 'done' && !t.done) return false;
+      if (state.typeFilter === 'none' && t.typeId) return false;
+      if (state.typeFilter !== 'all' && state.typeFilter !== 'none' && t.typeId !== state.typeFilter) return false;
+      if (state.priorityFilter === 'none' && t.priority) return false;
+      if (state.priorityFilter !== 'all' && state.priorityFilter !== 'none' && t.priority !== state.priorityFilter) return false;
+      return true;
+    });
+    if (state.sort !== 'priority') return list;
+    // Keep manual order inside a tier, so sorting never scrambles equal work.
+    return list
+      .map((t, i) => [t, i])
+      .sort((a, b) => (priRank(a[0]) - priRank(b[0])) || (a[1] - b[1]))
+      .map(pair => pair[0]);
+  }
+
+  function renderTasks() {
+    const p = current();
+    ui.taskList.textContent = '';
+    if (!p) return;
+
+    const tasks = visibleTasks(p);
+    if (!tasks.length) {
+      const empty = document.createElement('li');
+      empty.className = 'empty';
+      empty.textContent = p.tasks.length
+        ? 'No tasks match this filter.'
+        : 'Nothing here yet. Add a task above.';
+      ui.taskList.appendChild(empty);
+      return;
+    }
+    tasks.forEach(task => ui.taskList.appendChild(taskRow(p, task)));
+  }
+
+  function taskRow(project, task) {
+    const li = document.createElement('li');
+    li.className = 'task' + (task.done ? ' done' : '');
+    li.dataset.id = task.id;
+    const priority = priorityOf(task.priority);
+    if (priority) {
+      li.dataset.pri = priority.id;
+      li.style.setProperty('--pri', priority.color);
+    }
+    const reorderable = state.sort === 'manual' && state.filter === 'all'
+      && state.typeFilter === 'all' && state.priorityFilter === 'all';
+    li.draggable = reorderable;
+
+    const grip = document.createElement('span');
+    grip.className = 'grip';
+    grip.textContent = '⠿';
+    grip.title = reorderable ? 'Drag to reorder' : 'Sort manually and clear the filters to reorder';
+    li.appendChild(grip);
+
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = task.done;
+    box.title = 'Mark complete';
+    box.addEventListener('change', () => { task.done = box.checked; touch(); });
+    li.appendChild(box);
+
+    const body = document.createElement('div');
+    body.className = 'body';
+
+    const line = document.createElement('div');
+    line.className = 'title-line';
+
+    if (priority) line.appendChild(priorityChip(priority));
+
+    const type = typeOf(project, task.typeId);
+    if (type) line.appendChild(typeChip(type));
+
+    const title = document.createElement('button');
+    title.className = 'task-title';
+    title.textContent = task.title;
+    title.title = 'Open task';
+    title.addEventListener('click', () => openTask(project, task));
+    line.appendChild(title);
+    body.appendChild(line);
+
+    if (task.description.trim()) {
+      const preview = document.createElement('div');
+      preview.className = 'desc-preview';
+      preview.textContent = task.description.trim().split('\n')[0];
+      body.appendChild(preview);
+    }
+    li.appendChild(body);
+
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '×';
+    del.title = 'Delete task';
+    del.addEventListener('click', () => removeTask(project, task.id));
+    li.appendChild(del);
+
+    if (reorderable) wireDrag(li, project);
+    return li;
+  }
+
+  function priorityChip(pri) {
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (pri.id === 'critical' ? ' solid' : '');
+    chip.textContent = pri.short;
+    chip.title = pri.name;
+    if (pri.id === 'critical') {       // the top tier reads as a badge, not a tag
+      chip.style.background = pri.color;
+      chip.style.borderColor = pri.color;
+    } else {
+      chip.style.color = pri.color;
+      chip.style.borderColor = pri.color + '66';
+      chip.style.background = pri.color + '1f';
+    }
+    return chip;
+  }
+
+  function typeChip(type) {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = type.name;
+    chip.style.color = type.color;
+    chip.style.borderColor = type.color + '66';
+    chip.style.background = type.color + '1f';
+    return chip;
+  }
+
+  function removeTask(project, id) {
+    project.tasks = project.tasks.filter(t => t.id !== id);
+    touch();
+  }
+
+  /* ================= drag to reorder ================= */
+
+  let dragId = null;
+
+  function wireDrag(li, project) {
+    li.addEventListener('dragstart', e => {
+      dragId = li.dataset.id;
+      li.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragId);
+    });
+    li.addEventListener('dragend', () => { dragId = null; li.classList.remove('dragging'); renderTasks(); });
+    li.addEventListener('dragover', e => {
+      if (!dragId || dragId === li.dataset.id) return;
+      e.preventDefault();
+      li.classList.add('drop-target');
+    });
+    li.addEventListener('dragleave', () => li.classList.remove('drop-target'));
+    li.addEventListener('drop', e => {
+      e.preventDefault(); e.stopPropagation();
+      li.classList.remove('drop-target');
+      if (!dragId || dragId === li.dataset.id) return;
+      const from = project.tasks.findIndex(t => t.id === dragId);
+      const to = project.tasks.findIndex(t => t.id === li.dataset.id);
+      if (from < 0 || to < 0) return;
+      project.tasks.splice(to, 0, project.tasks.splice(from, 1)[0]);
+      touch();
+    });
+  }
+
+  /* ================= dialogs ================= */
+
+  document.querySelectorAll('[data-close]').forEach(btn => {
+    btn.addEventListener('click', () => el(btn.dataset.close).close());
+  });
+
+  // --- task detail ---
+  let openTaskRef = null;
+
+  function openTask(project, task) {
+    openTaskRef = { project, task };
+    el('taskTitle').value = task.title;
+    el('taskDesc').value = task.description;
+    el('taskDone').checked = task.done;
+    typeOptions(el('taskType'), project, task.typeId || '', null);
+    priorityOptions(el('taskPriority'), task.priority || '', null);
+    el('taskDialog').showModal();
+    el('taskDesc').focus();
+  }
+
+  function bindTaskField(id, apply) {
+    el(id).addEventListener('input', () => {
+      if (!openTaskRef) return;
+      apply(openTaskRef.task, el(id));
+      touch(false);                       // flag first, so the redraw shows the new state
+      renderProjects(); renderFileBar(); renderTasks();
+    });
+  }
+  bindTaskField('taskTitle', (task, input) => { task.title = input.value; });
+  bindTaskField('taskDesc', (task, input) => { task.description = input.value; });
+  el('taskType').addEventListener('change', e => {
+    if (!openTaskRef) return;
+    openTaskRef.task.typeId = e.target.value || null;
+    touch();
+  });
+  el('taskPriority').addEventListener('change', e => {
+    if (!openTaskRef) return;
+    openTaskRef.task.priority = e.target.value || null;
+    touch();
+  });
+  el('taskDone').addEventListener('change', e => {
+    if (!openTaskRef) return;
+    openTaskRef.task.done = e.target.checked;
+    touch();
+  });
+  el('taskDelete').addEventListener('click', async () => {
+    if (!openTaskRef) return;
+    const { project, task } = openTaskRef;
+    const choice = await ask({
+      title: 'Delete task?',
+      body: '"' + (task.title || 'Untitled task') + '" will be removed from this project.',
+      okText: 'Delete', danger: true
+    });
+    if (choice !== 'ok') return;
+    el('taskDialog').close();
+    removeTask(project, task.id);
+  });
+  el('taskDialog').addEventListener('close', () => {
+    if (openTaskRef && !openTaskRef.task.title.trim()) {
+      openTaskRef.task.title = 'Untitled task';
+    }
+    openTaskRef = null;
+    touch();
+  });
+
+  // --- type editor ---
+  function openTypeEditor() {
+    const p = current();
+    if (!p) return;
+    el('typeScope').textContent = 'Types belong to "' + p.name + '". Other projects keep their own.';
+    renderTypeEditor();
+    el('typeDialog').showModal();
+    el('newTypeName').focus();
+  }
+
+  function renderTypeEditor() {
+    const p = current();
+    const list = el('typeList');
+    list.textContent = '';
+
+    if (!p.types.length) {
+      const empty = document.createElement('div');
+      empty.className = 'dlg-note';
+      empty.textContent = 'No types yet. Add one below.';
+      list.appendChild(empty);
+    }
+
+    p.types.forEach(type => {
+      const row = document.createElement('div');
+      row.className = 'type-row';
+
+      const swatches = document.createElement('div');
+      swatches.className = 'swatches';
+      PALETTE.forEach(color => {
+        const sw = document.createElement('button');
+        sw.className = 'swatch' + (color.toLowerCase() === type.color.toLowerCase() ? ' selected' : '');
+        sw.style.background = color;
+        sw.title = 'Use this colour';
+        sw.addEventListener('click', () => {
+          type.color = color;
+          renderTypeEditor();
+          touch();
+        });
+        swatches.appendChild(sw);
+      });
+      row.appendChild(swatches);
+
+      const name = document.createElement('input');
+      name.type = 'text';
+      name.value = type.name;
+      name.addEventListener('input', () => {
+        type.name = name.value;
+        touch(false);
+        renderSelects(); renderTasks(); renderFileBar();
+      });
+      name.addEventListener('blur', () => {
+        if (!type.name.trim()) { type.name = 'Untitled type'; renderTypeEditor(); }
+        touch();
+      });
+      row.appendChild(name);
+
+      const used = p.tasks.filter(t => t.typeId === type.id).length;
+      const usage = document.createElement('span');
+      usage.className = 'usage';
+      usage.textContent = used ? used + ' task' + (used === 1 ? '' : 's') : 'unused';
+      row.appendChild(usage);
+
+      const del = document.createElement('button');
+      del.className = 'icon-btn';
+      del.textContent = '×';
+      del.title = 'Delete type';
+      del.addEventListener('click', async () => {
+        if (used) {
+          const choice = await ask({
+            title: 'Delete "' + type.name + '"?',
+            body: used + ' task' + (used === 1 ? '' : 's') + ' will keep their titles but lose this type.',
+            okText: 'Delete type', danger: true
+          });
+          if (choice !== 'ok') return;
+        }
+        p.types = p.types.filter(t => t.id !== type.id);
+        p.tasks.forEach(t => { if (t.typeId === type.id) t.typeId = null; });
+        renderTypeEditor();
+        touch();
+      });
+      row.appendChild(del);
+
+      list.appendChild(row);
+    });
+  }
+
+  function addType() {
+    const p = current();
+    const input = el('newTypeName');
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    const color = PALETTE[p.types.length % PALETTE.length];
+    p.types.push({ id: uid(), name, color });
+    input.value = '';
+    input.focus();
+    renderTypeEditor();
+    touch();
+  }
+  el('addType').addEventListener('click', addType);
+  el('newTypeName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addType(); }
+  });
+  el('editTypes').addEventListener('click', openTypeEditor);
+
+  // --- prompt / ask ---
+  // Resolve on either `close` or the form's `submit`, so a dialog can never
+  // leave its caller waiting on an event that didn't arrive.
+  function dialogResult(dlg, map) {
+    return new Promise(resolve => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        dlg.removeEventListener('close', onClose);
+        dlg.removeEventListener('submit', onSubmit);
+        if (dlg.open) dlg.close();
+        resolve(map(dlg.returnValue));
+      };
+      const onClose = () => finish();
+      const onSubmit = () => setTimeout(finish, 0);
+      dlg.addEventListener('close', onClose);
+      dlg.addEventListener('submit', onSubmit);
+    });
+  }
+
+  // Cancel/secondary buttons close explicitly, so Enter always triggers the primary one.
+  el('promptCancel').addEventListener('click', () => el('promptDialog').close('cancel'));
+  el('askCancel').addEventListener('click', () => el('askDialog').close('cancel'));
+  el('askExtra').addEventListener('click', () => el('askDialog').close('extra'));
+
+  function promptText({ title, label, value = '', okText = 'Save' }) {
+    const dlg = el('promptDialog');
+    el('promptTitle').textContent = title;
+    el('promptLabel').textContent = label;
+    el('promptOk').textContent = okText;
+    const input = el('promptInput');
+    input.value = value;
+    dlg.returnValue = '';
+    dlg.showModal();
+    input.select();
+    return dialogResult(dlg, rv => (rv === 'ok' ? input.value.trim() : null));
+  }
+
+  function ask({ title, body, okText = 'OK', extraText = null, danger = false }) {
+    const dlg = el('askDialog');
+    el('askTitle').textContent = title;
+    el('askBody').textContent = body;
+    const ok = el('askOk');
+    ok.textContent = okText;
+    ok.className = 'btn ' + (danger ? 'danger' : 'primary');
+    const extra = el('askExtra');
+    extra.hidden = !extraText;
+    if (extraText) extra.textContent = extraText;
+    dlg.returnValue = '';
+    dlg.showModal();
+    return dialogResult(dlg, rv => (rv === 'ok' || rv === 'extra' ? rv : null));
+  }
+
+  // --- project row menu ---
+  let openMenu = null;
+
+  function closeMenu() {
+    if (openMenu) { openMenu.remove(); openMenu = null; }
+  }
+  document.addEventListener('click', closeMenu);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+
+  function openProjectMenu(project, anchor) {
+    closeMenu();
+    const menu = document.createElement('div');
+    menu.className = 'menu';
+    menu.addEventListener('click', e => e.stopPropagation());
+
+    const item = (text, fn, cls) => {
+      const b = document.createElement('button');
+      b.textContent = text;
+      if (cls) b.className = cls;
+      b.addEventListener('click', () => { closeMenu(); fn(); });
+      menu.appendChild(b);
+    };
+
+    item('Rename…', () => renameProject(project));
+    item('Duplicate', () => duplicateProject(project));
+    item(HAS_FS ? 'Save to file…' : 'Download file', () => saveProject(project, true));
+    menu.appendChild(document.createElement('hr'));
+    item('Delete project', () => deleteProject(project), 'danger');
+
+    document.body.appendChild(menu);
+    const rect = anchor.getBoundingClientRect();
+    menu.style.top = Math.min(rect.bottom + 4, window.innerHeight - menu.offsetHeight - 8) + 'px';
+    menu.style.left = Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8) + 'px';
+    openMenu = menu;
+  }
+
+  /* ================= project actions ================= */
+
+  async function createProject() {
+    const name = await promptText({ title: 'New project', label: 'Project name', value: '', okText: 'Create' });
+    if (name === null) return;
+    const proj = makeProject(name || 'Untitled project');
+    state.projects.push(proj);
+    state.currentId = proj.id;
+    state.typeFilter = 'all';
+    state.priorityFilter = 'all';
+    save(); renderAll();
+    ui.newTask.focus();
+  }
+
+  async function renameProject(project) {
+    const name = await promptText({ title: 'Rename project', label: 'Project name', value: project.name });
+    if (name === null) return;
+    project.name = name || project.name;
+    project.updated = now();
+    if (project.file) project.dirty = true;
+    save(); renderAll();
+  }
+
+  function duplicateProject(project) {
+    const copy = normalizeProject(JSON.parse(JSON.stringify(exportPayload(project).project)));
+    copy.id = uid();
+    copy.name = project.name + ' (copy)';
+    copy.file = null;
+    copy.dirty = false;
+    state.projects.push(copy);
+    state.currentId = copy.id;
+    save(); renderAll();
+    toast('Duplicated as "' + copy.name + '"');
+  }
+
+  async function deleteProject(project) {
+    const choice = await ask({
+      title: 'Delete "' + project.name + '"?',
+      body: project.tasks.length + ' task' + (project.tasks.length === 1 ? '' : 's') + ' will be removed from this browser.'
+        + (project.file ? ' The file ' + project.file.name + ' on disk is not touched.' : ''),
+      okText: 'Delete project', danger: true
+    });
+    if (choice !== 'ok') return;
+
+    state.projects = state.projects.filter(p => p.id !== project.id);
+    handles.delete(project.id);
+    handleStore.del(project.id);
+    stamps.delete(project.id);
+    fileTimes.delete(project.id);
+    liveFiles.delete(project.id);
+    if (!state.projects.length) state.projects.push(makeProject('My tasks'));
+    if (!current()) state.currentId = state.projects[0].id;
+    save(); renderAll();
+    toast('Project deleted.');
+  }
+
+  /* ================= misc ================= */
+
+  let toastTimer = null;
+  function toast(msg) {
+    ui.toast.textContent = msg;
+    ui.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => ui.toast.classList.remove('show'), 2600);
+  }
+
+  /* ================= events ================= */
+
+  ui.newTask.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const title = ui.newTask.value.trim();
+    if (!title) return;
+    const p = current();
+    p.tasks.push({
+      id: uid(), title, description: '',
+      typeId: state.newType || null, priority: state.newPriority || null,
+      done: false, created: now()
+    });
+    ui.newTask.value = '';
+    if (state.filter === 'done') setFilter('all');
+    touch();
+  });
+
+  ui.newTaskType.addEventListener('change', e => { state.newType = e.target.value; });
+  ui.typeFilter.addEventListener('change', e => { state.typeFilter = e.target.value; renderTasks(); });
+  ui.newTaskPriority.addEventListener('change', e => { state.newPriority = e.target.value; });
+  ui.priorityFilter.addEventListener('change', e => { state.priorityFilter = e.target.value; renderTasks(); });
+  ui.sortBy.addEventListener('change', e => { state.sort = e.target.value; renderTasks(); });
+
+  ui.title.addEventListener('input', () => {
+    const p = current();
+    if (!p) return;
+    p.name = ui.title.value.trim() || 'Untitled project';
+    p.updated = now();
+    if (p.file) p.dirty = true;
+    save();
+    renderProjects(); renderFileBar();
+  });
+  ui.title.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ui.title.blur(); } });
+
+  ui.filters.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-filter]');
+    if (btn) setFilter(btn.dataset.filter);
+  });
+
+  function setFilter(f) {
+    state.filter = f;
+    [...ui.filters.children].forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+    renderTasks();
+  }
+
+  el('newProject').addEventListener('click', createProject);
+  ui.saveFile.addEventListener('click', () => saveProject(current(), false));
+  ui.saveFileAs.addEventListener('click', () => saveProject(current(), true));
+  el('openFile').addEventListener('click', openProjectFile);
+
+  ui.filePicker.addEventListener('change', async () => {
+    for (const file of ui.filePicker.files) await importText(await file.text(), file.name, null, file.lastModified);
+  });
+
+  el('clearDone').addEventListener('click', async () => {
+    const p = current();
+    const done = p.tasks.filter(t => t.done);
+    if (!done.length) { toast('Nothing completed yet.'); return; }
+    const choice = await ask({
+      title: 'Clear completed?',
+      body: done.length + ' completed task' + (done.length === 1 ? '' : 's') + ' will be deleted.',
+      okText: 'Clear', danger: true
+    });
+    if (choice !== 'ok') return;
+    p.tasks = p.tasks.filter(t => !t.done);
+    touch();
+    toast('Cleared ' + done.length + ' task' + (done.length === 1 ? '' : 's') + '.');
+  });
+
+  document.addEventListener('keydown', e => {
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod) return;
+    const key = e.key.toLowerCase();
+    if (key === 'n' && e.shiftKey) { e.preventDefault(); createProject(); }
+    else if (key === 's' && e.shiftKey) { e.preventDefault(); saveProject(current(), true); }
+    else if (key === 's') { e.preventDefault(); saveProject(current(), false); }
+    else if (key === 'o') { e.preventDefault(); openProjectFile(); }
+  });
+
+  // Drop a .json file anywhere to open it.
+  window.addEventListener('dragover', e => {
+    if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault();
+  });
+  window.addEventListener('drop', async e => {
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if (!files || !files.length) return;
+    e.preventDefault();
+    for (const file of files) await importText(await file.text(), file.name, null, file.lastModified);
+  });
+
+  if (!HAS_FS) {
+    ui.watchFolder.hidden = true;
+    ui.storageHint.textContent = 'Projects autosave in this browser. Saving downloads a copy; drop a .json file anywhere to open it.';
+  }
+
+  // Dev convenience: when this page is served from a local server, reload it as
+  // soon as index.html itself changes on disk.
+  if (/^https?:$/.test(location.protocol) && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+    let sourceStamp = null;
+    setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const res = await fetch(location.pathname, { method: 'HEAD', cache: 'no-store' });
+        const tag = res.headers.get('last-modified') || res.headers.get('etag');
+        if (!tag) return;
+        if (sourceStamp === null) sourceStamp = tag;
+        else if (tag !== sourceStamp) location.reload();
+      } catch (e) { /* server went away */ }
+    }, 2000);
+  }
+
+  load();
+  save();            // persist the seed project / migrated v1 data right away
+  renderAll();
+  restoreHandles();
+  ui.newTask.focus();
+})();
+</script>
+</body>
+</html>
